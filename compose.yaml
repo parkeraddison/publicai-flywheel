@@ -1,0 +1,53 @@
+services:
+
+  openwebui:
+    image: ghcr.io/forpublicai/open-webui:latest-cognito-patch
+    ports:
+      - "7801:8080"
+    volumes:
+      - open-webui:/app/backend/data
+      - ../chat.publicai.co/community/system_prompts:/app/backend/data/system_prompts:ro
+    # See chat.publicai.co/charts/web_services/charts/open-webui/values.yaml and
+    # chat.publicai.co/charts/web_services/charts/open-webui/templates/deployment.yaml
+    # for the PublicAI configuration values.
+    environment:
+      # Auth
+      # ...
+      # WebSearch
+      ENABLE_WEB_SEARCH: True
+      WEB_SEARCH_ENGINE: "searxng"
+      # RAG_WEB_SEARCH_RESULT_COUNT: 3
+      # RAG_WEB_SEARCH_CONCURRENT_REQUESTS: 10
+      SEARXNG_QUERY_URL: "http://searxng:8080/search?q=<query>"
+
+  searxng:
+    container_name: searxng
+    image: searxng/searxng:latest
+    ports:
+      - "7802:8080"
+    volumes:
+      - searxng:/etc/searxng:rw
+    environment:
+      SEARXNG_HOSTNAME: "localhost:7802/"
+    restart: unless-stopped
+    # NOTE: On the first run, you must remove `cap_drop: - ALL` for the searxng
+    # service to successfully create /etc/searxng/uwsgi.ini. This is necessary
+    # because the `cap_drop: - ALL` directive removes all capabilities,
+    # including those required for the creation of the uwsgi.ini file. After the
+    # first run, you should re-add `cap_drop: - ALL` for security reasons.
+    # cap_drop:
+    #   - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+      - DAC_OVERRIDE
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+        max-file: "1"
+
+volumes:
+  open-webui:
+  searxng:
